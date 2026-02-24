@@ -1,0 +1,54 @@
+[project]
+name = "clutgen"
+version = "0.0.1"
+authors = [{ name = "Paulo Santos", email = "pauloxrms@gmail.com" }]
+description = "CLUTGen, an ADC LUT generator for fast aquisition and calibration."
+dependencies = ["PyYAML", "pandas", "numpy", "matplotlib"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Embedded Systems",
+]
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["ADC", "LUT", "Look-up table", "generator"]
+
+[project.urls]
+Homepage = "https://github.com/wkhadgar/clutgen"
+Issues = "https://github.com/wkhadgar/clutgen/issues"
+
+[project.scripts]
+clutgen = "src.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = ["src.cli"]
+packages = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+  "B",   # flake8-bugbear
+  "E",   # pycodestyle
+  "F",   # pyflakes
+  "I",   # isort
+  "SIM", # flake8-simplify
+  "UP",  # pyupgrade
+  "W",   # pycodestyle warnings
+]
+ignore = [
+  "SIM108", # Allow if-else blocks instead of forcing ternary operator
+  "E402",   # Allow module-level import outside top of file
+]
+
+[tool.ruff.format]
+quote-style = "preserve"
+line-ending = "lf"

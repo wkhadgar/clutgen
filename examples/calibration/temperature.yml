@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2024, Centro de Inovacao EDGE
+
+name: temperatures
+description: temperatures (in Celsius)
+lut_type: int16_t
+table_resolution_bits: 12
+
+generator: ./data/temperature.csv

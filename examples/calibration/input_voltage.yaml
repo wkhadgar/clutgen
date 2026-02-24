@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: Apache-2.0
+#
+# Copyright (c) 2026, Paulo Santos
+
+name: input_voltages
+description: input voltages (in Volts x 100)
+lut_type: uint16_t
+table_resolution_bits: 12
+
+generator: ./data/input_voltage.csv
