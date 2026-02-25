@@ -32,7 +32,7 @@ class GenMethod(Enum):
 class VirtualSensor:
     def __init__(
         self,
-        measure_dict: dict[int, int | float] | None = None,
+        measure_dict: dict[int, int | float],
         *,
         resolution: int,
     ):
@@ -45,12 +45,10 @@ class VirtualSensor:
         """
         self.resolution: int = resolution
 
-        if measure_dict is not None:
-            self.x = np.array(list(measure_dict.keys()))
-            self.y = np.array(list(measure_dict.values()))
-            return
-
-        raise ValueError(f"Unable to create virtual sensor with given data: {measure_dict}")
+        sanitized_dict = dict(sorted(measure_dict.items(), key=lambda item: item[0]))
+        self.x = np.array(list(sanitized_dict.keys()))
+        self.y = np.array(list(sanitized_dict.values()))
+        return
 
     def __get_best_fit_lms(self) -> list:
         """
@@ -75,6 +73,14 @@ class VirtualSensor:
         return list(reversed(best_coefficients))
 
     def data_gen(self, method: GenMethod, *, max_val: int, min_val: int) -> dict[int, int]:
+        """
+        Generates the interpolated points, based on the given method.
+
+        :param method: Method of interpolation.
+        :param max_val: Maximum interpolation value.
+        :param min_val: Minimum interpolation value.
+        :return: List of polynomial coefficients, ordered from highest degree to lowest.
+        """
         max_raw = 2**self.resolution
         virtual_measures_span = range(0, max_raw)
 
@@ -192,37 +198,29 @@ class LUTStringify:
         self.type_str = f"const {output_type}"
         self.preview_out_dir = out_path / "preview"
         self.preview_out_path = None
-        self.method: GenMethod = method
 
         out_path.mkdir(exist_ok=True)
         self.preview_out_dir.mkdir(exist_ok=True)
 
         if output_type.startswith("u"):
-            self.max_int = (2**self.var_size_bits) - 1
-            self.min_int = 0
+            max_int = (2**self.var_size_bits) - 1
+            min_int = 0
         else:
-            self.max_int = (2 ** (self.var_size_bits - 1)) - 1
-            self.min_int = -self.max_int
+            max_int = (2 ** (self.var_size_bits - 1)) - 1
+            min_int = -max_int
 
-    def __get_lut_values_str(self):
+        self.interpolated_points = self.sensor.data_gen(method, max_val=max_int, min_val=min_int)
+
+    def __get_lut_values_str(self) -> str:
         """
-        Generates calibrated values based on previous measurements.
+        Generates LUT values array based on previous measurements.
 
         :return: String representing the values the sensor read.
         """
         line_dim = 0
         output_str = ""
 
-        table = self.sensor.data_gen(self.method, max_val=self.max_int, min_val=self.min_int)
-
-        plt.figure(figsize=(15, 10), dpi=250)
-        plt.scatter(self.sensor.x, self.sensor.y, c="r", s=10, zorder=3)
-        plt.grid(visible=True, which="both")
-        plt.plot(range(len(table)), list(table.values()), c="b")
-        plt.legend(["Calibration values", "Calculated LUT"])
-        plt.savefig(self.preview_out_path, bbox_inches='tight')
-
-        for v in list(table.values()):
+        for v in self.interpolated_points.values():
             current_temp_str = f"{v}, "
 
             if (line_dim + len(current_temp_str)) >= 95:
@@ -234,26 +232,52 @@ class LUTStringify:
 
         return "{\n\t" + output_str + "\n};\n\n"
 
-    def get_lut_definition(self, code_name: str, doc_name: str):
+    def gen_table_preview_plot(self, preview_file_name: str, plot_title: str):
+        """
+        Generates plot previews of the interpolated points.
+
+        :param preview_file_name: Name used for the image file.
+        :param plot_title: Title of the generated preview plot.
+        """
+
+        self.preview_out_path = self.preview_out_dir / preview_file_name
+        plt.close()
+        plt.title(f"{plot_title.capitalize()}")
+        plt.xlabel(f"ADC Value (scaled to {self.sensor.resolution} bits)")
+        plt.ylabel("LUT Value (in calibration unit)")
+
+        plt.figure(figsize=(15, 10), dpi=250)
+        plt.scatter(self.sensor.x, self.sensor.y, c="r", s=10, zorder=3)
+        plt.grid(visible=True, which="both")
+        plt.plot(
+            list(self.interpolated_points.keys()),
+            list(self.interpolated_points.values()),
+            c="b",
+        )
+        plt.legend(["Calibration values", "Calculated LUT"])
+        plt.savefig(self.preview_out_path, bbox_inches='tight')
+
+    def get_lut_definition(self, code_name: str) -> str:
         """
         Generates a syntactically correct C string for header assignment.
 
         :param code_name: Name used in the code for the generated LUT.
-        :param doc_name: Natural language name for the generated LUT.
-        :return: Formatted string for use in headers.
+        :return: Formatted string for use in definition.
         """
 
-        self.preview_out_path = self.preview_out_dir / code_name
-        plt.close()
-        plt.title(f"{doc_name.capitalize()}")
-        plt.xlabel(f"ADC Value (scaled to {self.sensor.resolution} bits)")
-        plt.ylabel("LUT Value (in calibration unit)")
         return (
             f"{self.type_str} {code_name}_lut[{2**self.sensor.resolution}] = "
             + self.__get_lut_values_str()
         )
 
-    def get_lut_declaration(self, code_name: str, doc_name: str):
+    def get_lut_declaration(self, code_name: str, doc_name: str) -> str:
+        """
+        Generates a documented C declaration string for external use in code.
+
+        :param code_name: Name used in the code for the generated LUT.
+        :param doc_name: Natural language name for the generated LUT.
+        :return: Formatted string for use in declaration.
+        """
         docs = (
             "/**\n"
             f" * @brief LUT for {doc_name} measurements.\n"
@@ -355,8 +379,9 @@ def generate(in_files: list[str], filename: str, method: GenMethod):
         printer = LUTStringify(
             out_dir, sensor, output_type=output_size_bits, method=GenMethod(overwrite_method)
         )
-        luts_c.append(printer.get_lut_definition(code_name=code_name, doc_name=doc_name))
+        luts_c.append(printer.get_lut_definition(code_name=code_name))
         luts_h.append(printer.get_lut_declaration(code_name=code_name, doc_name=doc_name))
+        printer.gen_table_preview_plot(preview_file_name=code_name, plot_title=doc_name)
 
     out_dir.mkdir(exist_ok=True)
     out_include_dir.mkdir(exist_ok=True)

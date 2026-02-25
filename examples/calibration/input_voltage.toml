@@ -4,4 +4,3 @@ lut_type = "uint16_t"
 table_resolution_bits = 12
 
 samples_csv = "./data/input_voltage.csv"
-interpolation = "splines"                # Force a given interpolation method.
