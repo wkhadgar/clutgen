@@ -1,14 +1,13 @@
 import argparse
 
+from src import generator as gen
 from src.generator import GenMethod
-from src.generator import main as generator_main
 
 
-def main():
-    parser = argparse.ArgumentParser()
+def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument(
         "-i",
-        metavar="path/to/yaml.yml",
+        metavar="path/to/config.toml",
         help="Configuration YAMLs for the LUT generation.",
         type=str,
         nargs="+",
@@ -18,48 +17,61 @@ def main():
         "-n",
         "--name",
         metavar="name",
-        help="Name of the generated header.",
+        help="Name of the generated LUT files.",
         default="lookup_tables",
     )
 
     method_group = parser.add_mutually_exclusive_group()
+    parser.set_defaults(method=GenMethod.LINEAR)
 
     method_group.add_argument(
         "-l",
-        "--linear",
+        f"--{GenMethod.LINEAR.value}",
         action="store_const",
         const=GenMethod.LINEAR,
         dest="method",
-        help="Linear Interpolation generation method.",
+        help="Linear Interpolation generation method. [default]",
     )
     method_group.add_argument(
         "-s",
-        "--spline",
+        f"--{GenMethod.SPLINES.value}",
         action="store_const",
-        const=GenMethod.SPLINE,
+        const=GenMethod.SPLINES,
         dest="method",
         help="Cubic Splines Interpolation generation method.",
     )
     method_group.add_argument(
         "-p",
-        "--polinomial",
+        f"--{GenMethod.POLYNOMIAL.value}",
         action="store_const",
-        const=GenMethod.POLINOMIAL,
+        const=GenMethod.POLYNOMIAL,
         dest="method",
         help="Polinomial Interpolation generation method.",
     )
     method_group.add_argument(
         "-w",
-        "--piecewise",
+        f"--{GenMethod.PIECEWISE.value}",
         action="store_const",
         const=GenMethod.PIECEWISE,
         dest="method",
         help="Piecewise Interpolation generation method.",
     )
+    method_group.add_argument(
+        "-d",
+        f"--{GenMethod.IDW.value}",
+        action="store_const",
+        const=GenMethod.IDW,
+        dest="method",
+        help="Inverse Distance Weighting generation method.",
+    )
 
-    parser.set_defaults(method=GenMethod.LINEAR)
+    return parser
 
-    generator_main(
+
+def main():
+    parser = build_parser(argparse.ArgumentParser())
+
+    gen.generate(
         parser.parse_args().i,
         parser.parse_args().name,
         parser.parse_args().method,

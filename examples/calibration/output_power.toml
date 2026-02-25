@@ -1,0 +1,6 @@
+name = "output_powers"
+description = "supply output power (in miliwatts)"
+lut_type = "uint32_t"
+table_resolution_bits = 12
+
+samples_csv = "./data/output_power.csv"

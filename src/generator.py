@@ -10,23 +10,23 @@
 
 from __future__ import annotations
 
+import csv
 import datetime
 import math
-import sys
 from enum import Enum
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import yaml
+import tomllib
 
 
 class GenMethod(Enum):
-    LINEAR = "l"
-    SPLINE = "s"
-    POLINOMIAL = "p"
-    PIECEWISE = "w"
+    LINEAR = "linear"
+    SPLINES = "splines"
+    POLYNOMIAL = "polynomial"
+    PIECEWISE = "piecewise"
+    IDW = "idw"
 
 
 class VirtualSensor:
@@ -79,7 +79,7 @@ class VirtualSensor:
         virtual_measures_span = range(0, max_raw)
 
         match method:
-            case GenMethod.POLINOMIAL:
+            case GenMethod.POLYNOMIAL:
                 virtual_measures: dict[int, int] = {}
                 coefficients = self.__get_best_fit_lms()
                 degree = len(coefficients)
@@ -106,7 +106,7 @@ class VirtualSensor:
                     xi: int(max(min(math.trunc(yi), max_val), min_val))
                     for xi, yi in zip(virtual_measures_span, y_interp, strict=False)
                 }
-            case GenMethod.SPLINE:
+            case GenMethod.SPLINES:
                 x, y = self.x, self.y
                 n = len(x)
                 h = np.diff(x)
@@ -151,6 +151,22 @@ class VirtualSensor:
                     xi: int(max(min(yi, max_val), min_val))
                     for xi, yi in zip(virtual_measures_span, y_interp, strict=True)
                 }
+            case GenMethod.IDW:
+                virtual_measures: dict[int, int] = {}
+                power = 2
+
+                for xi in virtual_measures_span:
+                    distances = np.abs(self.x - xi)
+
+                    if np.any(distances == 0):
+                        yi = self.y[np.argmin(distances)]
+                    else:
+                        weights = 1.0 / (distances**power)
+                        yi = np.sum(weights * self.y) / np.sum(weights)
+
+                    virtual_measures[xi] = int(max(min(int(yi), max_val), min_val))
+
+                return virtual_measures
 
 
 class LUTStringify:
@@ -250,7 +266,7 @@ class LUTStringify:
         return docs + f"\nextern {self.type_str} {code_name}_lut[{2**self.sensor.resolution}];\n\n"
 
 
-def main(in_files: list[str], filename: str, method: GenMethod):
+def generate(in_files: list[str], filename: str, method: GenMethod):
     out_dir = Path("./generated_luts")
     out_include_dir = Path("./include")
     out_path_c = out_dir / (filename + ".c")
@@ -292,48 +308,53 @@ def main(in_files: list[str], filename: str, method: GenMethod):
     luts_c = []
     luts_h = []
 
-    calibration_data_yamls: list[Path] = []
+    calibration_data_tomls: list[Path] = []
     for file in in_files:
         abs_file_path = Path(file).resolve()
-        if file.endswith(".yml") or file.endswith(".yaml"):
-            calibration_data_yamls.append(abs_file_path.resolve())
+        if file.endswith(".toml"):
+            calibration_data_tomls.append(abs_file_path.resolve())
 
-    if len(calibration_data_yamls) == 0:
-        print("-- No configuration YAMLs found.")
+    if len(calibration_data_tomls) == 0:
+        print("-- No configuration TOMLs found.")
         return
 
-    for gen_yaml in calibration_data_yamls:
-        with open(gen_yaml, encoding="utf8") as stream:
-            lut_descriptor = yaml.safe_load(stream)
+    for gen_toml in calibration_data_tomls:
+        with open(gen_toml, "rb") as toml:
+            lut_descriptor = tomllib.load(toml)
 
             code_name: str = lut_descriptor["name"]
             doc_name: str = lut_descriptor["description"]
             resolution: int = int(lut_descriptor["table_resolution_bits"])
             output_size_bits: str = lut_descriptor["lut_type"]
-            generator: Path = Path(lut_descriptor["generator"])
+            samples: Path = Path(lut_descriptor["samples_csv"])
+            overwrite_method = lut_descriptor.get("interpolation", method.value)
 
             try:
-                path = (gen_yaml.parent / generator).resolve(strict=True)
+                path = (gen_toml.parent / samples).resolve(strict=True)
             except FileNotFoundError:
-                path = generator.resolve(strict=True)
+                path = samples.resolve(strict=True)
 
-            if generator.suffix == ".csv":
-                gen_data = pd.read_csv(path)
-            elif generator.suffix in (".xls", ".xlsx", ".xlsm", ".xlsb", ".odf", ".ods", ".odt"):
-                gen_data = pd.read_excel(path)
-            else:
-                print(f"Could not obtain generator for {code_name}\nCheck the table format.")
-                sys.exit(1)
+            if samples.suffix != ".csv":
+                print(f"-- Invalid generator '{samples}' for {code_name}. Is it a valid CSV?")
+                continue
+
+            with open(path, encoding="utf-8") as f:
+                reader = csv.reader(f)
+                csv_header = next(reader)
+                raw_collumn = csv_header[0]
+                calibration_collumn = csv_header[1]
+                if raw_collumn != "raw" or calibration_collumn != "calibration":
+                    print(f"-- {path} schema must be: 'raw,calibration'")
+                raw_values, calibration_values = zip(*list(reader), strict=True)
 
         sensor = VirtualSensor(
-            {
-                int(raw): int(val)
-                for raw, val in zip(gen_data["raw"], gen_data["calibration"], strict=False)
-            },
+            {int(raw): int(val) for raw, val in zip(raw_values, calibration_values, strict=True)},
             resolution=resolution,
         )
         print(f"-- Generating {code_name} LUT based on '{path}'...")
-        printer = LUTStringify(out_dir, sensor, output_type=output_size_bits, method=method)
+        printer = LUTStringify(
+            out_dir, sensor, output_type=output_size_bits, method=GenMethod(overwrite_method)
+        )
         luts_c.append(printer.get_lut_definition(code_name=code_name, doc_name=doc_name))
         luts_h.append(printer.get_lut_declaration(code_name=code_name, doc_name=doc_name))
 

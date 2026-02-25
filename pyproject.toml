@@ -1,9 +1,9 @@
 [project]
 name = "clutgen"
-version = "0.0.1"
+version = "0.1.0"
 authors = [{ name = "Paulo Santos", email = "pauloxrms@gmail.com" }]
-description = "CLUTGen, an ADC LUT generator for fast aquisition and calibration."
-dependencies = ["PyYAML", "pandas", "numpy", "matplotlib"]
+description = "CLUTGen, a flexible ADC LUT generator for embedded systems."
+dependencies = ["numpy", "matplotlib"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",

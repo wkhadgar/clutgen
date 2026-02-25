@@ -1,0 +1,6 @@
+name = "copy_temperatures"
+description = "copied temperatures (in Celsius)"
+lut_type = "int16_t"
+table_resolution_bits = 12
+
+samples_csv = "./calibration/data/temperature.csv"
