@@ -19,16 +19,29 @@ CLUTGen automates the creation of **Look-Up Tables** for embedded systems, speci
 * Python 3.10+
 * `numpy`, `matplotlib`
 
+### Installation
+
+CLUTGen is available on PyPI! To install it on your project, just run:
+```bash
+# On your virtual environment
+pip install clutgen
+```
+
+Or, if you want to build it yourself, from the root of this repository:
+```bash
+# On your virtual environment
+pip install .
+```
+
+
 ### Usage
 
 ```bash
-# From the root of the repository
-pip install .
-# Generate LUTs with cubic splines fit for every configuration toml in the given paths.
-clutgen -s -i ./examples/calibration/*.toml ./examples/temperature_copy.toml
+# Generate preview and LUTs with cubic splines fit for every configuration TOML in the given paths.
+clutgen -sv ./examples/calibration/temperature.toml ./examples/temperature_copy.toml
 ```
 
-### YAML Configuration Template
+### TOML Configuration Template
 
 Create a CSV file mapping your POIs with the given schema, where `raw` is the measured ADC raw value, and `calibration` is the desired output for the LUT at that given `raw` value:
 ```csv
@@ -46,7 +59,10 @@ table_resolution_bits = 12            # Resolution (e.g., 12 bits = 4096 entries
 lut_type = "int16_t"                  # C type (int8_t, uint16_t, etc.)
  
 samples_csv = "./data/temperature_samples.csv" # Path to CSV/Excel with 'raw' and 'calibration' columns. Path is global or relative to this file.
-interpolation = "polynomial" # Optional, forces a given interpolation method to this LUT.
+
+# Optionals
+interpolation = "polynomial"  # Forces a given interpolation method for this LUT.
+preview = true                # Enforce/stop preview generation for this LUT.
 
 ```
 
