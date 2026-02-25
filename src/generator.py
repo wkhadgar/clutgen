@@ -196,11 +196,8 @@ class LUTStringify:
             output_type.removeprefix("u").removeprefix("int").removesuffix("_t")
         )
         self.type_str = f"const {output_type}"
-        self.preview_out_dir = out_path / "preview"
-        self.preview_out_path = None
-
-        out_path.mkdir(exist_ok=True)
-        self.preview_out_dir.mkdir(exist_ok=True)
+        self.out_dir = out_path
+        self.preview_out_dir = None
 
         if output_type.startswith("u"):
             max_int = (2**self.var_size_bits) - 1
@@ -239,14 +236,17 @@ class LUTStringify:
         :param preview_file_name: Name used for the image file.
         :param plot_title: Title of the generated preview plot.
         """
+        if self.preview_out_dir is None:
+            self.preview_out_dir = self.out_dir / "preview"
+            self.preview_out_dir.mkdir(exist_ok=True, parents=True)
 
         self.preview_out_path = self.preview_out_dir / preview_file_name
         plt.close()
+
+        plt.figure(figsize=(15, 10), dpi=250)
         plt.title(f"{plot_title.capitalize()}")
         plt.xlabel(f"ADC Value (scaled to {self.sensor.resolution} bits)")
         plt.ylabel("LUT Value (in calibration unit)")
-
-        plt.figure(figsize=(15, 10), dpi=250)
         plt.scatter(self.sensor.x, self.sensor.y, c="r", s=10, zorder=3)
         plt.grid(visible=True, which="both")
         plt.plot(
@@ -290,11 +290,11 @@ class LUTStringify:
         return docs + f"\nextern {self.type_str} {code_name}_lut[{2**self.sensor.resolution}];\n\n"
 
 
-def generate(in_files: list[str], filename: str, method: GenMethod):
-    out_dir = Path("./generated_luts")
-    out_include_dir = Path("./include")
+def generate(
+    in_files: list[Path], out_dir: Path, filename: str, method: GenMethod, gen_preview: bool
+):
     out_path_c = out_dir / (filename + ".c")
-    out_path_h = out_include_dir / (filename + ".h")
+    out_path_h = out_dir / (filename + ".h")
 
     header_h = (
         "/**\n"
@@ -334,8 +334,8 @@ def generate(in_files: list[str], filename: str, method: GenMethod):
 
     calibration_data_tomls: list[Path] = []
     for file in in_files:
-        abs_file_path = Path(file).resolve()
-        if file.endswith(".toml"):
+        abs_file_path = file.resolve(strict=True)
+        if file.suffix == ".toml":
             calibration_data_tomls.append(abs_file_path.resolve())
 
     if len(calibration_data_tomls) == 0:
@@ -352,6 +352,7 @@ def generate(in_files: list[str], filename: str, method: GenMethod):
             output_size_bits: str = lut_descriptor["lut_type"]
             samples: Path = Path(lut_descriptor["samples_csv"])
             overwrite_method = lut_descriptor.get("interpolation", method.value)
+            preview = lut_descriptor.get("preview", gen_preview)
 
             try:
                 path = (gen_toml.parent / samples).resolve(strict=True)
@@ -381,10 +382,10 @@ def generate(in_files: list[str], filename: str, method: GenMethod):
         )
         luts_c.append(printer.get_lut_definition(code_name=code_name))
         luts_h.append(printer.get_lut_declaration(code_name=code_name, doc_name=doc_name))
-        printer.gen_table_preview_plot(preview_file_name=code_name, plot_title=doc_name)
+        if preview:
+            printer.gen_table_preview_plot(preview_file_name=code_name, plot_title=doc_name)
 
-    out_dir.mkdir(exist_ok=True)
-    out_include_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(exist_ok=True, parents=True)
 
     with open(out_path_c, "w", encoding="utf8") as out:
         print(f"-- Generating source {filename}.c...")

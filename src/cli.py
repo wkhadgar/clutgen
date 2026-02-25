@@ -1,4 +1,5 @@
 import argparse
+from pathlib import Path
 
 from src import generator as gen
 from src.generator import GenMethod
@@ -6,12 +7,17 @@ from src.generator import GenMethod
 
 def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     parser.add_argument(
-        "-i",
-        metavar="path/to/config.toml",
-        help="Configuration YAMLs for the LUT generation.",
-        type=str,
+        "input_files",
+        help="Configuration TOMLs for the LUT generation.",
+        type=Path,
         nargs="+",
-        required=True,
+    )
+    parser.add_argument(
+        "-o",
+        metavar="output/dir/",
+        help="Output directory. Generated files will be added here.",
+        type=Path,
+        default=Path("./clutgenerated"),
     )
     parser.add_argument(
         "-n",
@@ -19,6 +25,12 @@ def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         metavar="name",
         help="Name of the generated LUT files.",
         default="lookup_tables",
+    )
+    parser.add_argument(
+        "-v",
+        "--preview",
+        action="store_true",
+        help="Generate preview plots for each generated LUT.",
     )
 
     method_group = parser.add_mutually_exclusive_group()
@@ -72,9 +84,11 @@ def main():
     parser = build_parser(argparse.ArgumentParser())
 
     gen.generate(
-        parser.parse_args().i,
-        parser.parse_args().name,
-        parser.parse_args().method,
+        in_files=parser.parse_args().input_files,
+        out_dir=parser.parse_args().o,
+        filename=parser.parse_args().name,
+        method=parser.parse_args().method,
+        gen_preview=parser.parse_args().preview,
     )
 
 
