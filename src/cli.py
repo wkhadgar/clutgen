@@ -85,10 +85,10 @@ def main():
 
     gen.generate(
         in_files=args.input_files,
-        out_dir=args.parse_args().output_dir,
-        filename=args.parse_args().name,
-        method=args.parse_args().method,
-        gen_preview=args.parse_args().preview,
+        out_dir=args.output_dir,
+        filename=args.name,
+        method=args.method,
+        gen_preview=args.preview,
     )
 
 
