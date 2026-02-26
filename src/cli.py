@@ -2,7 +2,6 @@ import argparse
 from pathlib import Path
 
 from src import generator as gen
-from src.generator import GenMethod
 
 
 def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -14,6 +13,7 @@ def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "-o",
+        "--output_dir",
         metavar="output/dir/",
         help="Output directory. Generated files will be added here.",
         type=Path,
@@ -27,52 +27,51 @@ def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         default="lookup_tables",
     )
     parser.add_argument(
-        "-v",
         "--preview",
         action="store_true",
         help="Generate preview plots for each generated LUT.",
     )
 
     method_group = parser.add_mutually_exclusive_group()
-    parser.set_defaults(method=GenMethod.LINEAR)
+    parser.set_defaults(method=gen.GenMethod.LINEAR)
 
     method_group.add_argument(
         "-l",
-        f"--{GenMethod.LINEAR.value}",
+        f"--{gen.GenMethod.LINEAR.value}",
         action="store_const",
-        const=GenMethod.LINEAR,
+        const=gen.GenMethod.LINEAR,
         dest="method",
         help="Linear Interpolation generation method. [default]",
     )
     method_group.add_argument(
         "-s",
-        f"--{GenMethod.SPLINES.value}",
+        f"--{gen.GenMethod.SPLINES.value}",
         action="store_const",
-        const=GenMethod.SPLINES,
+        const=gen.GenMethod.SPLINES,
         dest="method",
         help="Cubic Splines Interpolation generation method.",
     )
     method_group.add_argument(
         "-p",
-        f"--{GenMethod.POLYNOMIAL.value}",
+        f"--{gen.GenMethod.POLYNOMIAL.value}",
         action="store_const",
-        const=GenMethod.POLYNOMIAL,
+        const=gen.GenMethod.POLYNOMIAL,
         dest="method",
-        help="Polinomial Interpolation generation method.",
+        help="Polynomial Interpolation generation method.",
     )
     method_group.add_argument(
         "-w",
-        f"--{GenMethod.PIECEWISE.value}",
+        f"--{gen.GenMethod.PIECEWISE.value}",
         action="store_const",
-        const=GenMethod.PIECEWISE,
+        const=gen.GenMethod.PIECEWISE,
         dest="method",
         help="Piecewise Interpolation generation method.",
     )
     method_group.add_argument(
         "-d",
-        f"--{GenMethod.IDW.value}",
+        f"--{gen.GenMethod.IDW.value}",
         action="store_const",
-        const=GenMethod.IDW,
+        const=gen.GenMethod.IDW,
         dest="method",
         help="Inverse Distance Weighting generation method.",
     )
@@ -82,13 +81,14 @@ def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
 
 def main():
     parser = build_parser(argparse.ArgumentParser())
+    args = parser.parse_args()
 
     gen.generate(
-        in_files=parser.parse_args().input_files,
-        out_dir=parser.parse_args().o,
-        filename=parser.parse_args().name,
-        method=parser.parse_args().method,
-        gen_preview=parser.parse_args().preview,
+        in_files=args.input_files,
+        out_dir=args.output_dir,
+        filename=args.name,
+        method=args.method,
+        gen_preview=args.preview,
     )
 
 
