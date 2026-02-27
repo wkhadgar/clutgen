@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 
 from src import generator as gen
+from src.plot import show_interactive_plot
 
 
 def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
@@ -12,24 +13,26 @@ def build_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
         nargs="+",
     )
     parser.add_argument(
-        "-o",
-        "--output_dir",
-        metavar="output/dir/",
-        help="Output directory. Generated files will be added here.",
-        type=Path,
-        default=Path("./clutgenerated"),
-    )
-    parser.add_argument(
         "-n",
         "--name",
         metavar="name",
         help="Name of the generated LUT files.",
         default="lookup_tables",
     )
-    parser.add_argument(
+
+    output_group = parser.add_mutually_exclusive_group()
+    output_group.add_argument(
+        "-o",
+        "--output-dir",
+        metavar="output/dir/",
+        help="Output directory. Generated files will be added here.",
+        type=Path,
+        default=Path("./clutgenerated"),
+    )
+    output_group.add_argument(
         "--preview",
         action="store_true",
-        help="Generate preview plots for each generated LUT.",
+        help="Open interactive view comparing all interpolation methods. Skips C file generation.",
     )
 
     method_group = parser.add_mutually_exclusive_group()
@@ -83,13 +86,16 @@ def main():
     parser = build_parser(argparse.ArgumentParser())
     args = parser.parse_args()
 
-    gen.generate(
-        in_files=args.input_files,
-        out_dir=args.output_dir,
-        filename=args.name,
-        method=args.method,
-        gen_preview=args.preview,
-    )
+    if args.preview:
+        configs = gen.parse_configs(args.input_files, args.method)
+        show_interactive_plot(configs)
+    else:
+        gen.generate(
+            in_files=args.input_files,
+            out_dir=args.output_dir,
+            filename=args.name,
+            method=args.method,
+        )
 
 
 if __name__ == "__main__":
