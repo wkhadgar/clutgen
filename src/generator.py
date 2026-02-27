@@ -105,7 +105,7 @@ def generate(in_files: list[Path], out_dir: Path, filename: str, method: GenMeth
             resolution=config.resolution,
         )
 
-        print(f"-- Generating {config.code_name} LUT...")
+        print(f"-- Generating {config.code_name} {config.method.value} LUT...")
         builder = LUTBuilder(
             out_dir,
             sensor,

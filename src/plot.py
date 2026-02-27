@@ -111,7 +111,7 @@ def show_interactive_plot(configs: list[LUTConfig]) -> None:
                 args=[
                     {"visible": visibility},
                     {
-                        "title.text": f"CLUTGen — {config.description.capitalize()} "
+                        "title.text": f"CLUTGen Preview — {config.description.capitalize()} "
                         f"@ ({config.resolution}-bit, {config.output_type})",
                         "yaxis.title.text": "LUT value",
                     },
@@ -121,7 +121,7 @@ def show_interactive_plot(configs: list[LUTConfig]) -> None:
 
     fig.update_layout(
         title=dict(
-            text=f"CLUTGen — {configs[0].description.capitalize()} "
+            text=f"CLUTGen Preview — {configs[0].description.capitalize()} "
             f"({configs[0].resolution}-bit, {configs[0].output_type})",
             x=0.5,
             xanchor="center",
