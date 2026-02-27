@@ -11,7 +11,7 @@ Given a set of calibration samples, CLUTGen fits an interpolation curve and gene
 ## Requirements
 
 * Python 3.10+
-* `numpy`, `matplotlib`
+* `numpy`, `plotly`
 
 ---
 
@@ -42,7 +42,7 @@ clutgen [OPTIONS] input_files...
 | `input_files` | One or more `.toml` configuration files |
 | `-o`, `--output-dir` | Output directory for generated files (default: `./clutgenerated`) |
 | `-n`, `--name` | Base name for the generated `.c`/`.h` files (default: `lookup_tables`) |
-| `--preview` | Open an interactive matplotlib plot after generation |
+| `--preview` | Open an interactive view comparing all interpolation methods before generation |
 
 **Interpolation method** (mutually exclusive, default: `--linear`):
 
@@ -57,11 +57,11 @@ clutgen [OPTIONS] input_files...
 **Examples:**
 
 ```bash
-# Generate with default linear interpolation
-clutgen ./calibration/temperature.toml
+# Explore interpolation methods interactively before choosing
+clutgen --preview ./calibration/temperature.toml ./calibration/pressure.toml
 
-# Generate with splines and open preview
-clutgen --splines --preview ./calibration/temperature.toml ./calibration/pressure.toml
+# Generate with splines after exploring
+clutgen --splines ./calibration/temperature.toml ./calibration/pressure.toml
 
 # Custom output directory and file name
 clutgen -o ./src/generated -n sensor_luts ./calibration/temperature.toml
@@ -91,7 +91,6 @@ samples_csv = "./data/temperature_samples.csv"  # Relative to this file, or abso
 
 # Optional
 interpolation = "polynomial"        # Overrides the CLI interpolation method for this LUT
-preview = true                      # Overrides the CLI --preview flag for this LUT
 ```
 
 ### Interpolation Methods
@@ -120,5 +119,3 @@ Each configured sensor produces an array named `<n>_lut`, where `n` is the `name
 
 int val = temp_sensor_lut[adc_reading];
 ```
-
-If `--preview` is set (or `preview = true` in a TOML), an additional `preview/` subdirectory is created inside the output directory containing a `.png` plot for each sensor.

@@ -1,9 +1,9 @@
 [project]
 name = "clutgen"
-version = "0.1.5"
+version = "0.2.0"
 authors = [{ name = "Paulo Santos", email = "pauloxrms@gmail.com" }]
 description = "CLUTGen, a flexible ADC LUT generator for embedded systems."
-dependencies = ["numpy", "matplotlib"]
+dependencies = ["numpy", "plotly"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
