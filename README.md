@@ -1,10 +1,10 @@
-# CLUTGen
+# CLUTGen CLI
 
 CLUTGen automates the creation of **Look-Up Tables** for embedded systems, converting raw ADC readings into calibrated physical units such as temperature, pressure, or distance.
 
 Given a set of calibration samples, CLUTGen fits an interpolation curve and generates a production-ready `.c`/`.h` pair with the full LUT precomputed for every possible ADC reading.
 
-> For Zephyr west module usage, see the [zephyr branch](https://github.com/wkhadgar/clutgen/tree/zephyr).
+> For Zephyr west module usage, see the [zephyr module](https://github.com/wkhadgar/clutgen-zephyr).
 
 ---
 
