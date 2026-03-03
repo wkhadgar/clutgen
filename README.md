@@ -119,3 +119,21 @@ Each configured sensor produces an array named `<n>_lut`, where `n` is the `name
 
 int val = temp_sensor_lut[adc_reading];
 ```
+
+
+---
+
+## Preview
+
+Opens an interactive figure in the browser showing all interpolation methods overlaid for each configured sensor. Use this to explore and compare methods before committing to one in the TOML.
+
+![CLUTGen interactive preview showing all interpolation methods overlaid](doc/img/clutgen_plot_overview.png)
+
+When multiple sensors are configured, a dropdown allows switching between them:
+
+![CLUTGen preview with sensor selector dropdown](doc/img/clutgen_plot_multisensor.png)
+
+You can focus on selected interpolations, zoom into regions, and hover over the plot to compare methods and make a confident choice:
+
+![CLUTGen preview with hidden methods and focused region](doc/img/clutgen_plot_interaction.png)
+---
