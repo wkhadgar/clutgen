@@ -11,12 +11,43 @@
 from __future__ import annotations
 
 import plotly.graph_objects as go
+import plotly.io as pio
 
 from src.config import GenMethod, LUTConfig
 from src.sensor import VirtualSensor
 
-_COLORS = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd"]
+pio.templates.default = "seaborn"
+
+_COLORS = [
+    "#4C72B0",  # blue     — linear
+    "#DD8452",  # orange   — splines
+    "#55A868",  # green    — polynomial
+    "#C44E52",  # reddish  — piecewise
+    "#8172B3",  # purple   — idw
+]
 _METHODS = list(GenMethod)
+
+
+def _get_type_bounds(output_type: str) -> tuple[int, int, int]:
+    """
+    Computes the min/max integer bounds for a given C type string.
+
+    :param output_type: C type string (e.g. 'int16_t', 'uint8_t').
+    :return: (max_int, min_int, var_size_bits) tuple.
+    """
+    var_size_bits = int(output_type.removeprefix("u").removeprefix("int").removesuffix("_t"))
+
+    if output_type.startswith("u"):
+        return (2**var_size_bits) - 1, 0, var_size_bits
+
+    max = (2 ** (var_size_bits - 1)) - 1
+
+    return max, -max, var_size_bits
+
+
+def _truncate(text: str, max_len: int = 32) -> str:
+    """Truncates a string to max_len characters, appending ellipsis if needed."""
+    return text if len(text) <= max_len else text[: max_len - 1] + "…"
 
 
 def _build_sensor_traces(config: LUTConfig) -> list[go.Scatter]:
@@ -26,15 +57,7 @@ def _build_sensor_traces(config: LUTConfig) -> list[go.Scatter]:
     :param config: Parsed LUTConfig for this sensor.
     :return: List of scatter trace objects.
     """
-    output_type = config.output_type
-    var_size_bits = int(output_type.removeprefix("u").removeprefix("int").removesuffix("_t"))
-    if output_type.startswith("u"):
-        max_int = (2**var_size_bits) - 1
-        min_int = 0
-    else:
-        max_int = (2 ** (var_size_bits - 1)) - 1
-        min_int = -max_int
-
+    max_int, min_int, _ = _get_type_bounds(config.output_type)
     traces = []
 
     for i, method in enumerate(_METHODS):
@@ -53,9 +76,10 @@ def _build_sensor_traces(config: LUTConfig) -> list[go.Scatter]:
                 y=list(lut.values()),
                 mode="lines",
                 name=method.value,
-                line=dict(color=_COLORS[i]),
+                line=dict(color=_COLORS[i], width=1.5),
+                opacity=0.85,
                 legendgroup=method.value,
-                hovertemplate="raw: %{x}<br>value: %{y}<extra>" + method.value + "</extra>",
+                hovertemplate="<br>%{y}<extra>" + method.value + "</extra>",
                 visible=True,
             )
         )
@@ -68,9 +92,14 @@ def _build_sensor_traces(config: LUTConfig) -> list[go.Scatter]:
             x=cal_x,
             y=cal_y,
             mode="markers",
-            name="calibration points",
-            marker=dict(color="red", size=8, symbol="circle"),
-            hovertemplate="raw: %{x}<br>calibration: %{y}<extra>calibration</extra>",
+            name="calibration samples",
+            marker=dict(
+                color="crimson",
+                size=7,
+                symbol="circle",
+                line=dict(width=0.8, color="white"),
+            ),
+            hovertemplate="<br>%{y}<extra>samples</extra>",
             visible=True,
         )
     )
@@ -104,49 +133,93 @@ def show_interactive_plot(configs: list[LUTConfig]) -> None:
         for s_idx in range(len(configs)):
             visibility += [s_idx == sensor_idx] * traces_per_sensor_count
 
+        plot_description = _truncate(config.description.capitalize(), max_len=50)
+
+        plot_title = (
+            f"CLUTGen Preview - {plot_description} @ {config.resolution}-bit, {config.output_type}"
+        )
+
         buttons.append(
             dict(
-                label=config.description.capitalize(),
+                label=_truncate(config.description.capitalize()),
                 method="update",
                 args=[
                     {"visible": visibility},
                     {
-                        "title.text": f"CLUTGen Preview — {config.description.capitalize()} "
-                        f"@ ({config.resolution}-bit, {config.output_type})",
+                        "title.text": plot_title,
                         "yaxis.title.text": "LUT value",
                     },
                 ],
             )
         )
 
+    this_plot_data = buttons[0]["args"][1]
     fig.update_layout(
+        paper_bgcolor="ghostwhite",
         title=dict(
-            text=f"CLUTGen Preview — {configs[0].description.capitalize()} "
-            f"({configs[0].resolution}-bit, {configs[0].output_type})",
+            text=this_plot_data["title.text"],
+            subtitle=dict(text=""),
             x=0.5,
             xanchor="center",
             y=0.98,
             yanchor="top",
+            font=dict(size=18, color="#2d2d2d"),
         ),
-        xaxis=dict(title="ADC raw value"),
-        yaxis=dict(title=f"LUT value ({configs[0].output_type})"),
+        xaxis=dict(
+            title="ADC raw value",
+            title_font=dict(size=13, color="#444444"),
+            tickfont=dict(color="#444444"),
+            gridwidth=1,
+            gridcolor="#C8C8DA",
+            griddash="dot",
+            autorange=True,
+        ),
+        yaxis=dict(
+            title=this_plot_data["yaxis.title.text"],
+            title_font=dict(size=13, color="#444444"),
+            tickfont=dict(color="#444444"),
+            gridwidth=1,
+            gridcolor="#C8C8DA",
+            griddash="dot",
+        ),
         hovermode="x unified",
-        legend=dict(groupclick="toggleitem"),
+        hoverlabel=dict(
+            bgcolor="rgba(20, 20, 20, 0.85)",
+            font_color="white",
+            bordercolor="rgba(0,0,0,0)",
+            font_size=12,
+        ),
+        font=dict(family="Roboto, Arial, sans-serif"),
+        legend=dict(
+            groupclick="toggleitem",
+            bordercolor="#B0B0C8",
+            borderwidth=1,
+            x=1.003,
+            xanchor="left",
+            y=1.0,
+            yanchor="top",
+        ),
         updatemenus=[
             dict(
                 buttons=buttons,
                 direction="down",
                 showactive=True,
+                bordercolor="#B0B0C8",
+                font=dict(color="#2d2d2d"),
                 x=0.0,
                 xanchor="left",
-                y=1.0,
-                yanchor="top",
+                y=1.01,
+                yanchor="bottom",
             )
         ]
         if len(configs) > 1
         else [],
-        margin=dict(t=100, l=60, r=40, b=60),
+        margin=dict(t=80, l=5, r=0, b=60),
         autosize=True,
     )
 
-    fig.show()
+    fig.show(
+        config=dict(
+            displaylogo=False,
+        )
+    )
